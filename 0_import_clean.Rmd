@@ -1,0 +1,154 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Testing small sample dataset for replicability of perf methods 
+
+```{r packages}
+
+library(tidyverse)
+library(readxl)
+library(stringr)
+library(lubridate)
+
+
+```
+
+```{r import}
+
+dem <- read_xlsx("G:/My Drive/@DataSF Root/Consulting/MBO - PERF/911_Police_Data_FY2016-17_Final.xlsx", 
+                 sheet = "DEM", 
+                 skip = 2,
+                 col_types = c("text",
+                               "text",
+                               "text",
+                               "text",
+                               "text",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "text",
+                               "text"))
+
+onview <- read_xlsx("G:/My Drive/@DataSF Root/Consulting/MBO - PERF/911_Police_Data_FY2016-17_Final.xlsx", 
+                 sheet = "ONVIEW", 
+                 skip = 2,
+                 col_types = c("text",
+                               "text",
+                               "text",
+                               "text",
+                               "text",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "date",
+                               "text",
+                               "text"))
+
+data <- bind_rows(dem,onview)
+rm(dem,onview)
+
+
+```
+
+### Clean
+
+- fix date/time 
+- split and relabel dispatch 1st unit
+
+Odd things.  The two_officer flag occasionally has a other characters besides 1 
+
+
+```{r clean}
+
+
+# fix date/time
+data <- 
+data %>% 
+
+  # create date/time columns for entry, dispatch, and close
+  #convert to text
+  mutate(`ENTRY DATE` = as.character(`ENTRY DATE`),
+         `ENTRY TIME` = as.character(`ENTRY TIME`),
+         `DISPATCH DATE` = as.character(`DISPATCH DATE`),
+         `DISPATCH TIME` = as.character(`DISPATCH TIME`),
+         `CLOSE DATE` = as.character(`CLOSE DATE`),
+         `CLOSE TIME` = as.character(`CLOSE TIME`)) %>% 
+  #remove erroneous date info from time fields
+  mutate(`ENTRY TIME` = str_replace(`ENTRY TIME`, "1899-12-31 ", ""),
+         `DISPATCH TIME` = str_replace(`DISPATCH TIME`, "1899-12-31 ", ""),
+         `CLOSE TIME` = str_replace(`CLOSE TIME`, "1899-12-31 ", "")) %>% 
+  # combine date & time
+  mutate(call_entry = str_c(`ENTRY DATE`,`ENTRY TIME`, sep = " "),
+         call_dispatch = str_c(`DISPATCH DATE`, `DISPATCH TIME`, sep = " "),
+         call_close = str_c(`CLOSE DATE`, `CLOSE TIME`, sep = " ")) %>% 
+  #convert back to POSIXct
+  mutate(call_entr = ymd_hms(`call_entry`),
+         call_dispatch = ymd_hms(`call_dispatch`),
+         call_close = ymd_hms(`call_close`)) 
+
+#fix dispatch 1st unit
+data <- 
+data %>%
+  mutate(
+    #extract 1st two characters
+    responding_unit = str_sub(`DISPATCH 1ST UNIT`, 1, 2),
+    
+    #extract 2nd to last character
+    sector = str_sub(`DISPATCH 1ST UNIT`, 
+                     (str_length(`DISPATCH 1ST UNIT`) -1), 
+                     (str_length(`DISPATCH 1ST UNIT`) -1)),
+    
+    #extract last character
+    shift = str_sub(`DISPATCH 1ST UNIT`, 
+                    str_length(`DISPATCH 1ST UNIT`), 
+                    str_length(`DISPATCH 1ST UNIT`)),
+    
+    #if dispatch 1st unit has 5 characters extract 3rd character, if not leave blank
+    two_officers = if_else(str_length(`DISPATCH 1ST UNIT`)==5,
+                           str_sub(`DISPATCH 1ST UNIT`, 3,3),
+                           NA_character_)) 
+
+# data check
+data %>% distinct(DGROUP)
+data %>% distinct(responding_unit)
+data %>% distinct(sector)
+data %>% distinct(shift)
+data %>% distinct(two_officers)
+
+data %>%
+  ggplot(aes(responding_unit)) +
+  geom_bar() +
+  coord_flip()
+
+data %>%
+  distinct(two_officers)
+
+data %>%
+  #filter(two_officers != "1") %>% 
+  ggplot(aes(two_officers)) +
+  geom_bar() +
+  coord_flip()
+
+data %>%
+  filter(two_officers != "1") %>% 
+  ggplot(aes(two_officers)) +
+  geom_bar() +
+  coord_flip()
+
+```
+### Create variables
+- same_district = did the call district match the dispatch unit district
+- 
+
+
+```{r variable creation}
+
+```
+
