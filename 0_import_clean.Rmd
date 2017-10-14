@@ -11,7 +11,7 @@ library(tidyverse)
 library(readxl)
 library(stringr)
 library(lubridate)
-
+library(scales)
 
 ```
 
@@ -89,7 +89,7 @@ data %>%
          call_dispatch = str_c(`DISPATCH DATE`, `DISPATCH TIME`, sep = " "),
          call_close = str_c(`CLOSE DATE`, `CLOSE TIME`, sep = " ")) %>% 
   #convert back to POSIXct
-  mutate(call_entr = ymd_hms(`call_entry`),
+  mutate(call_entry = ymd_hms(`call_entry`),
          call_dispatch = ymd_hms(`call_dispatch`),
          call_close = ymd_hms(`call_close`)) 
 
@@ -145,10 +145,19 @@ data %>%
 ```
 ### Create variables
 - same_district = did the call district match the dispatch unit district
-- 
+- dur_sec = how many seconds between dispatch time close time
+- dur_min = how many minutes between dispatch time close time
+- dur_hrs = how many hrs between dispatch time close time
+- duration = hr:min:sec
 
 
 ```{r variable creation}
+
+data %>% 
+  mutate(duration = call_close - call_dispatch) %>% 
+  ggplot(aes(duration)) +
+  geom_bar() +
+  scale_y_continuous(labels = comma)
 
 ```
 
